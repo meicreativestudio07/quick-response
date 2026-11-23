@@ -39,9 +39,10 @@ select{width:100%;padding:10px;border-radius:10px;border:1px solid var(--soft);b
 .list{padding:0}
 .note{background:#fff8e6;border-left:4px solid #e8b84a;border-radius:10px;padding:10px 12px;margin-top:16px;text-align:left;font-size:14px;line-height:1.6;font-weight:400}
 .note b{display:block;margin-bottom:4px}
-.mine{width:100%;margin-top:12px;min-height:70px;border:1px solid var(--soft);border-radius:12px;padding:10px;font:inherit;font-size:14px;color:var(--ink)}
-.notes-list li{display:block}
-.notes-list li small{display:block;margin-top:4px;line-height:1.6}
+.stage{display:flex;align-items:center;gap:6px;margin:14px 0}
+.stage .card{flex:1;margin:0;min-width:0}
+.arrow{flex:none;width:40px;height:72px;border:0;border-radius:14px;background:var(--soft);color:var(--main);font-size:34px;line-height:1;cursor:pointer}
+.arrow:active{background:var(--main);color:#fff}
 </style>
 </head>
 <body>
@@ -54,13 +55,9 @@ select{width:100%;padding:10px;border-radius:10px;border:1px solid var(--soft);b
   </div>
   <div class="prog"><i id="bar"></i></div>
   <div class="meta"><span id="pos"></span><span id="known"></span></div>
-  <div class="card" id="card"></div>
-  <div class="btns" style="margin-bottom:10px"><button class="ghost" id="prev">◀ 前へ戻る</button><button class="ghost" id="next">次へ進む ▶</button></div>
+  <div class="stage"><button class="arrow" id="prev" aria-label="前へ戻る">‹</button><div class="card" id="card"></div><button class="arrow" id="next" aria-label="次へ進む">›</button></div>
   <div class="btns"><button class="ng" id="ng">もう一回</button><button class="ok" id="ok">言えた！</button></div>
   <div class="btns small"><button class="ghost" id="say">🔊 英語を聞く</button><button class="ghost" id="reset">このセットをやり直す</button></div>
-  <textarea id="mine" class="mine" placeholder="この文について疑問に思ったこと・自分用メモ（自動保存）"></textarea>
-  <button class="ghost" id="togNotes" style="width:100%;margin-top:14px;padding:12px;border:0;border-radius:14px;font-weight:600;cursor:pointer"></button>
-  <ul class="list notes-list" id="notes"></ul>
   <button class="ghost" id="togList" style="width:100%;margin-top:14px;padding:12px;border:0;border-radius:14px;font-weight:600;cursor:pointer"></button>
   <ul class="list" id="list"></ul>
 </div>
@@ -69,7 +66,7 @@ select{width:100%;padding:10px;border-radius:10px;border:1px solid var(--soft);b
 <script>
 (()=>{
 const $=id=>document.getElementById(id), SETS=window.QR_SETS, KEY='quickresp.v1';
-let S={set:SETS.length-1,dir:'ja',ord:'seq',known:{},showList:false,showNotes:false,mine:{}};
+let S={set:SETS.length-1,dir:'ja',ord:'seq',known:{},showList:false};
 try{Object.assign(S,JSON.parse(localStorage.getItem(KEY)||'{}'))}catch(e){}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
 let queue=[],idx=0,flipped=false,hist=[];
@@ -91,12 +88,7 @@ function render(){
   $('list').innerHTML=items.map(it=>`<li class="${ks.includes(it[0])?'k':''}"><b>${it[0]}</b><span>${it[1]}<br><small style="color:var(--sub)">${it[2]}${it[3]?'　※'+it[3]:''}</small></span></li>`).join('');
   $('list').style.display=S.showList?'':'none';
   $('togList').textContent=S.showList?'一覧を隠す':'一覧を見る（答えが見えます）';
-  $('notes').style.display=S.showNotes?'':'none';
-  $('togNotes').textContent=S.showNotes?'疑問メモを隠す':'📝 疑問メモ一覧（答えが見えます）';
   const N=window.QR_NOTES||{},esc=t=>String(t).replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
-  const all=[];Object.keys(N).sort((a,b)=>a-b).forEach(k=>N[k].forEach(n=>all.push(`<li><b>No.${k}</b><span>${esc(n.q)}<small>${esc(n.a)}</small></span></li>`)));
-  Object.keys(S.mine).sort((a,b)=>a-b).forEach(k=>{if(S.mine[k].trim())all.push(`<li><b>No.${k}</b><span>自分のメモ<small>${esc(S.mine[k])}</small></span></li>`)});
-  $('notes').innerHTML=all.join('')||'<li>まだメモはありません</li>';
   const c=$('card');
   if(!queue.length){
     c.innerHTML='<div class="done"><div style="font-size:42px">🎉</div><div class="txt">全部言えた！</div><div class="tap">「やり直す」でもう一周できます</div></div>';
@@ -108,8 +100,6 @@ function render(){
   const fcls=S.dir==='ja'?'ja':'',bcls=S.dir==='ja'?'':'ja';
   c.innerHTML=`<div class="no">No.${it[0]}</div><div class="txt ${fcls}">${front}</div>`+
     (flipped?`<div class="ans ${bcls}">${back}</div>`:'<div class="tap">タップして答えを見る（まず口に出す！）</div>')+(flipped&&it[3]?`<div class="tap">※${it[3]}</div>`:'')+(flipped?(N[it[0]]||[]).map(n=>`<div class="note"><b>💡 ${esc(n.q)}</b>${esc(n.a)}</div>`).join(''):'');
-  if(document.activeElement!==$('mine'))$('mine').value=S.mine[it[0]]||'';
-  $('mine').dataset.no=it[0];
 }
 function say(){
   const it=queue[idx%queue.length];if(!it||!window.speechSynthesis)return;
@@ -133,15 +123,12 @@ function back(){
 }
 $('ng').onclick=skip;$('next').onclick=skip;$('prev').onclick=back;
 $('say').onclick=say;
-$('togNotes').onclick=()=>{S.showNotes=!S.showNotes;save();render()};
-$('mine').oninput=e=>{const k=e.target.dataset.no;if(!k)return;S.mine[k]=e.target.value;save()};
 $('togList').onclick=()=>{S.showList=!S.showList;save();render()};
 $('reset').onclick=()=>{S.known[S.set]=[];save();build()};
 $('set').onchange=e=>{S.set=+e.target.value;save();build()};
 $('dir').onclick=e=>{if(e.target.dataset.d){S.dir=e.target.dataset.d;save();flipped=false;render()}};
 $('ord').onclick=e=>{if(e.target.dataset.o){S.ord=e.target.dataset.o;save();build()}};
 document.addEventListener('keydown',e=>{
-  if(e.target.tagName==='TEXTAREA')return;
   if(e.code==='Space'){e.preventDefault();$('card').click()}
   else if(e.code==='ArrowRight')$('ok').click();else if(e.code==='ArrowLeft')$('ng').click();else if(e.code==='ArrowUp')back();
 });

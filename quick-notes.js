@@ -6,6 +6,8 @@ window.QR_NOTES = {
   a:"意味はほぼ同じ。have to が標準、have got to はくだけた会話向きで、少し「今すぐ」の切迫感が出る。丁寧な場面は I have to leave now.、友達との会話は I've got to go now. が自然。"}],
  112: [{q:"late は単体で副詞？ lately じゃないの？",
   a:"late は副詞で「遅い時間に・遅れて」（work late＝遅くまで働く／残業）。lately は別の副詞で「最近」（No.86）。lately にすると「最近働かなきゃいけない」になり意味が変わる。hard と hardly（ほとんど〜ない）と同じく、-ly を付けると別の意味になる組み合わせ。"}],
+ 113: [{q:"that early の that って何？ early だけじゃダメ？",
+  a:"that は「そんなに」の意味の副詞（so に近い）。that early＝そんなに早く。early だけだと「早く着かなくていい」、that early だと「そんなに早く着かなくていい（少し遅れてもOK）」。It's not that expensive.（そんなに高くない）／Is it that far?（そんなに遠いの？）など、否定文・疑問文でよく使う。「that＋形容詞・副詞」で「そんなに〜」とひとまとめに覚える。"}],
  86: [{q:"lately と late の違い（No.112 とセットで）",
   a:"lately＝最近（Has he been working out lately?）。late＝遅い時間に（No.112 work late）。"}]
 };

@@ -55,6 +55,7 @@ select{width:100%;padding:10px;border-radius:10px;border:1px solid var(--soft);b
   <div class="prog"><i id="bar"></i></div>
   <div class="meta"><span id="pos"></span><span id="known"></span></div>
   <div class="card" id="card"></div>
+  <div class="btns" style="margin-bottom:10px"><button class="ghost" id="prev">◀ 前へ戻る</button><button class="ghost" id="next">次へ進む ▶</button></div>
   <div class="btns"><button class="ng" id="ng">もう一回</button><button class="ok" id="ok">言えた！</button></div>
   <div class="btns small"><button class="ghost" id="say">🔊 英語を聞く</button><button class="ghost" id="reset">このセットをやり直す</button></div>
   <textarea id="mine" class="mine" placeholder="この文について疑問に思ったこと・自分用メモ（自動保存）"></textarea>
@@ -71,14 +72,14 @@ const $=id=>document.getElementById(id), SETS=window.QR_SETS, KEY='quickresp.v1'
 let S={set:SETS.length-1,dir:'ja',ord:'seq',known:{},showList:false,showNotes:false,mine:{}};
 try{Object.assign(S,JSON.parse(localStorage.getItem(KEY)||'{}'))}catch(e){}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
-let queue=[],idx=0,flipped=false;
+let queue=[],idx=0,flipped=false,hist=[];
 const cur=()=>SETS[S.set];
 $('set').innerHTML=SETS.map((s,i)=>`<option value="${i}">${s.date}　No.${s.items[0][0]}〜${s.items.at(-1)[0]}　${s.title}</option>`).join('');
 function build(){
   const ks=S.known[S.set]||[];
   queue=cur().items.filter(it=>!ks.includes(it[0]));
   if(S.ord==='shuf')queue.sort(()=>Math.random()-.5);
-  idx=0;flipped=false;render();
+  idx=0;flipped=false;hist=[];render();
 }
 function render(){
   const items=cur().items,ks=S.known[S.set]||[];
@@ -117,10 +118,20 @@ function say(){
 $('card').onclick=()=>{if(!queue.length)return;flipped=!flipped;render();if(flipped&&S.dir==='ja')say()};
 $('ok').onclick=()=>{
   if(!queue.length)return;
-  const it=queue[idx%queue.length];(S.known[S.set]=S.known[S.set]||[]).push(it[0]);save();
-  queue.splice(idx%queue.length,1);if(idx>=queue.length)idx=0;flipped=false;render();
+  const pos=idx%queue.length,it=queue[pos];(S.known[S.set]=S.known[S.set]||[]).push(it[0]);save();
+  hist.push({t:'ok',it,pos});
+  queue.splice(pos,1);if(idx>=queue.length)idx=0;flipped=false;render();
 };
-$('ng').onclick=()=>{if(!queue.length)return;idx=(idx+1)%queue.length;flipped=false;render()};
+function skip(){if(!queue.length)return;hist.push({t:'skip',from:idx});idx=(idx+1)%queue.length;flipped=false;render()}
+function back(){
+  const h=hist.pop();if(!h)return;
+  if(h.t==='ok'){
+    const ks=S.known[S.set]||[];S.known[S.set]=ks.filter(n=>n!==h.it[0]);save();
+    queue.splice(Math.min(h.pos,queue.length),0,h.it);idx=Math.min(h.pos,queue.length-1);
+  }else idx=Math.min(h.from,queue.length-1);
+  flipped=false;render();
+}
+$('ng').onclick=skip;$('next').onclick=skip;$('prev').onclick=back;
 $('say').onclick=say;
 $('togNotes').onclick=()=>{S.showNotes=!S.showNotes;save();render()};
 $('mine').oninput=e=>{const k=e.target.dataset.no;if(!k)return;S.mine[k]=e.target.value;save()};
@@ -132,7 +143,7 @@ $('ord').onclick=e=>{if(e.target.dataset.o){S.ord=e.target.dataset.o;save();buil
 document.addEventListener('keydown',e=>{
   if(e.target.tagName==='TEXTAREA')return;
   if(e.code==='Space'){e.preventDefault();$('card').click()}
-  else if(e.code==='ArrowRight')$('ok').click();else if(e.code==='ArrowLeft')$('ng').click();
+  else if(e.code==='ArrowRight')$('ok').click();else if(e.code==='ArrowLeft')$('ng').click();else if(e.code==='ArrowUp')back();
 });
 build();
 })();

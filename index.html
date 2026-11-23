@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quick Response フラッシュカード</title>
+<style>
+:root{--bg:#f4fafb;--card:#fff;--ink:#23424a;--sub:#6b8a91;--main:#2a7f8c;--soft:#c9ecf0;--ok:#4a9b7f;--ng:#d9826b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"Hiragino Sans",sans-serif;min-height:100vh}
+.wrap{max-width:640px;margin:0 auto;padding:16px}
+h1{font-size:18px;margin:4px 0 12px}
+select,button{font:inherit}
+select{width:100%;padding:10px;border-radius:10px;border:1px solid var(--soft);background:#fff;color:var(--ink)}
+.row{display:flex;gap:8px;margin:10px 0;flex-wrap:wrap}
+.seg{display:flex;border:1px solid var(--soft);border-radius:10px;overflow:hidden;flex:1}
+.seg button{flex:1;border:0;background:#fff;padding:9px 6px;color:var(--sub);cursor:pointer}
+.seg button.on{background:var(--main);color:#fff}
+.prog{height:8px;background:var(--soft);border-radius:4px;overflow:hidden;margin:12px 0 4px}
+.prog i{display:block;height:100%;background:var(--ok);width:0;transition:width .3s}
+.meta{display:flex;justify-content:space-between;color:var(--sub);font-size:13px}
+.card{background:var(--card);border-radius:20px;box-shadow:0 4px 18px #2a7f8c22;min-height:260px;margin:14px 0;padding:28px 22px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;cursor:pointer;user-select:none}
+.card .no{color:var(--sub);font-size:13px;margin-bottom:10px}
+.card .txt{font-size:26px;line-height:1.5;font-weight:600}
+.card .txt.ja{font-size:22px}
+.card .ans{margin-top:18px;font-size:26px;line-height:1.5;font-weight:600;color:var(--main)}
+.card .ans.ja{font-size:20px;color:var(--ink)}
+.card .tap{color:var(--sub);font-size:13px;margin-top:18px}
+.btns{display:flex;gap:10px}
+.btns button{flex:1;padding:14px;border:0;border-radius:14px;font-size:16px;font-weight:600;color:#fff;cursor:pointer}
+.ng{background:var(--ng)}.ok{background:var(--ok)}.ghost{background:var(--soft)!important;color:var(--main)!important}
+.small{margin-top:10px}
+.small button{padding:10px;font-size:14px}
+.done{text-align:center;padding:30px 10px}
+.list{margin-top:18px}
+.list li{background:#fff;border-radius:12px;padding:10px 12px;margin-bottom:6px;list-style:none;display:flex;gap:10px;font-size:15px}
+.list li b{color:var(--sub);min-width:28px}
+.list li.k{opacity:.5}
+.list{padding:0}
+.note{background:#fff8e6;border-left:4px solid #e8b84a;border-radius:10px;padding:10px 12px;margin-top:16px;text-align:left;font-size:14px;line-height:1.6;font-weight:400}
+.note b{display:block;margin-bottom:4px}
+.mine{width:100%;margin-top:12px;min-height:70px;border:1px solid var(--soft);border-radius:12px;padding:10px;font:inherit;font-size:14px;color:var(--ink)}
+.notes-list li{display:block}
+.notes-list li small{display:block;margin-top:4px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Quick Response フラッシュカード</h1>
+  <select id="set"></select>
+  <div class="row">
+    <div class="seg" id="dir"><button data-d="ja" class="on">日本語→英語</button><button data-d="en">英語→日本語</button></div>
+    <div class="seg" id="ord"><button data-o="seq" class="on">順番</button><button data-o="shuf">シャッフル</button></div>
+  </div>
+  <div class="prog"><i id="bar"></i></div>
+  <div class="meta"><span id="pos"></span><span id="known"></span></div>
+  <div class="card" id="card"></div>
+  <div class="btns"><button class="ng" id="ng">もう一回</button><button class="ok" id="ok">言えた！</button></div>
+  <div class="btns small"><button class="ghost" id="say">🔊 英語を聞く</button><button class="ghost" id="reset">このセットをやり直す</button></div>
+  <textarea id="mine" class="mine" placeholder="この文について疑問に思ったこと・自分用メモ（自動保存）"></textarea>
+  <button class="ghost" id="togNotes" style="width:100%;margin-top:14px;padding:12px;border:0;border-radius:14px;font-weight:600;cursor:pointer"></button>
+  <ul class="list notes-list" id="notes"></ul>
+  <button class="ghost" id="togList" style="width:100%;margin-top:14px;padding:12px;border:0;border-radius:14px;font-weight:600;cursor:pointer"></button>
+  <ul class="list" id="list"></ul>
+</div>
+<script src="quick-data.js"></script>
+<script src="quick-notes.js"></script>
+<script>
+(()=>{
+const $=id=>document.getElementById(id), SETS=window.QR_SETS, KEY='quickresp.v1';
+let S={set:SETS.length-1,dir:'ja',ord:'seq',known:{},showList:false,showNotes:false,mine:{}};
+try{Object.assign(S,JSON.parse(localStorage.getItem(KEY)||'{}'))}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+let queue=[],idx=0,flipped=false;
+const cur=()=>SETS[S.set];
+$('set').innerHTML=SETS.map((s,i)=>`<option value="${i}">${s.date}　No.${s.items[0][0]}〜${s.items.at(-1)[0]}　${s.title}</option>`).join('');
+function build(){
+  const ks=S.known[S.set]||[];
+  queue=cur().items.filter(it=>!ks.includes(it[0]));
+  if(S.ord==='shuf')queue.sort(()=>Math.random()-.5);
+  idx=0;flipped=false;render();
+}
+function render(){
+  const items=cur().items,ks=S.known[S.set]||[];
+  $('set').value=S.set;
+  document.querySelectorAll('#dir button').forEach(b=>b.classList.toggle('on',b.dataset.d===S.dir));
+  document.querySelectorAll('#ord button').forEach(b=>b.classList.toggle('on',b.dataset.o===S.ord));
+  $('bar').style.width=ks.length/items.length*100+'%';
+  $('known').textContent=`覚えた ${ks.length}/${items.length}`;
+  $('list').innerHTML=items.map(it=>`<li class="${ks.includes(it[0])?'k':''}"><b>${it[0]}</b><span>${it[1]}<br><small style="color:var(--sub)">${it[2]}${it[3]?'　※'+it[3]:''}</small></span></li>`).join('');
+  $('list').style.display=S.showList?'':'none';
+  $('togList').textContent=S.showList?'一覧を隠す':'一覧を見る（答えが見えます）';
+  $('notes').style.display=S.showNotes?'':'none';
+  $('togNotes').textContent=S.showNotes?'疑問メモを隠す':'📝 疑問メモ一覧（答えが見えます）';
+  const N=window.QR_NOTES||{},esc=t=>String(t).replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
+  const all=[];Object.keys(N).sort((a,b)=>a-b).forEach(k=>N[k].forEach(n=>all.push(`<li><b>No.${k}</b><span>${esc(n.q)}<small>${esc(n.a)}</small></span></li>`)));
+  Object.keys(S.mine).sort((a,b)=>a-b).forEach(k=>{if(S.mine[k].trim())all.push(`<li><b>No.${k}</b><span>自分のメモ<small>${esc(S.mine[k])}</small></span></li>`)});
+  $('notes').innerHTML=all.join('')||'<li>まだメモはありません</li>';
+  const c=$('card');
+  if(!queue.length){
+    c.innerHTML='<div class="done"><div style="font-size:42px">🎉</div><div class="txt">全部言えた！</div><div class="tap">「やり直す」でもう一周できます</div></div>';
+    $('pos').textContent='';return;
+  }
+  const it=queue[idx%queue.length];
+  $('pos').textContent=`残り ${queue.length} 枚`;
+  const front=S.dir==='ja'?it[2]:it[1],back=S.dir==='ja'?it[1]:it[2];
+  const fcls=S.dir==='ja'?'ja':'',bcls=S.dir==='ja'?'':'ja';
+  c.innerHTML=`<div class="no">No.${it[0]}</div><div class="txt ${fcls}">${front}</div>`+
+    (flipped?`<div class="ans ${bcls}">${back}</div>`:'<div class="tap">タップして答えを見る（まず口に出す！）</div>')+(flipped&&it[3]?`<div class="tap">※${it[3]}</div>`:'')+(flipped?(N[it[0]]||[]).map(n=>`<div class="note"><b>💡 ${esc(n.q)}</b>${esc(n.a)}</div>`).join(''):'');
+  if(document.activeElement!==$('mine'))$('mine').value=S.mine[it[0]]||'';
+  $('mine').dataset.no=it[0];
+}
+function say(){
+  const it=queue[idx%queue.length];if(!it||!window.speechSynthesis)return;
+  speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(it[1].split(' / ')[0]);u.lang='en-US';u.rate=.9;speechSynthesis.speak(u);
+}
+$('card').onclick=()=>{if(!queue.length)return;flipped=!flipped;render();if(flipped&&S.dir==='ja')say()};
+$('ok').onclick=()=>{
+  if(!queue.length)return;
+  const it=queue[idx%queue.length];(S.known[S.set]=S.known[S.set]||[]).push(it[0]);save();
+  queue.splice(idx%queue.length,1);if(idx>=queue.length)idx=0;flipped=false;render();
+};
+$('ng').onclick=()=>{if(!queue.length)return;idx=(idx+1)%queue.length;flipped=false;render()};
+$('say').onclick=say;
+$('togNotes').onclick=()=>{S.showNotes=!S.showNotes;save();render()};
+$('mine').oninput=e=>{const k=e.target.dataset.no;if(!k)return;S.mine[k]=e.target.value;save()};
+$('togList').onclick=()=>{S.showList=!S.showList;save();render()};
+$('reset').onclick=()=>{S.known[S.set]=[];save();build()};
+$('set').onchange=e=>{S.set=+e.target.value;save();build()};
+$('dir').onclick=e=>{if(e.target.dataset.d){S.dir=e.target.dataset.d;save();flipped=false;render()}};
+$('ord').onclick=e=>{if(e.target.dataset.o){S.ord=e.target.dataset.o;save();build()}};
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='TEXTAREA')return;
+  if(e.code==='Space'){e.preventDefault();$('card').click()}
+  else if(e.code==='ArrowRight')$('ok').click();else if(e.code==='ArrowLeft')$('ng').click();
+});
+build();
+})();
+</script>
+</body>
+</html>
